@@ -1,11 +1,5 @@
-from ..libfledge import
+from libfledge.nodes.weather import NOAA
 
-
-class MyDevice:
-
-    def __init__(self):
-        pass
-
-    @device.get
-    def get_10(self):
-        return 10
+if __name__ == "__main__":
+    noaa = NOAA()
+    print(noaa.node_verbs())

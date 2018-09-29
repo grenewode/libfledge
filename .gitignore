@@ -2,3 +2,6 @@
 .idea
 tags
 venv
+**/__pycache__
+.mypy_cache
+third-party
