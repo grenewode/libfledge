@@ -1,5 +1,6 @@
-from libfledge.nodes.weather import NOAA
+from libfledge.nodes import NOAA, kind_name
 
 if __name__ == "__main__":
     noaa = NOAA()
-    print(noaa.node_verbs())
+    print(noaa.__class__.__name__)
+    print(kind_name(noaa))

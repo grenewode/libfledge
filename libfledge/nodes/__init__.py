@@ -1,33 +1,28 @@
-import random
-from typing import List, Optional
+from typing import Mapping
 
-from verbs import Verb, _LIBFLEDGE_FUNC_VERB_TAG
+from libfledge.nodes.base import Node
+from libfledge.nodes.weather import *
 
 
-class Node:
-    _node_verbs: Optional[List[Verb]] = None
+def kind_name(node: Node):
+    return node.kind_name()
 
-    def __init__(self):
-        self.fledge_id = random.randint(0, 2 ** 64)
 
-    @classmethod
-    def kind_name(cls) -> str:
-        return cls.__name__
+def kind_description(node: Node):
+    return node.kind_description()
 
-    @classmethod
-    def kind_description(cls) -> Optional[str]:
-        return cls.__doc__
 
-    def node_verbs(self) -> List[Verb]:
-        cls = type(self)
+def node_getters(node: Node):
+    return node.node_getters()
 
-        if cls._node_verbs is not None:
-            return cls._node_verbs
-        else:
-            cls._node_verbs = []
-            for name in dir(cls):
-                attr = getattr(cls, name)
-                verb = getattr(attr, _LIBFLEDGE_FUNC_VERB_TAG, None)
-                if verb is not None:
-                    cls._node_verbs.append(verb)
-            return cls._node_verbs
+
+def node_updaters(node: Node):
+    return node.node_updaters()
+
+
+def do_node_getter(node: Node, name: str, args: Mapping[str, str]):
+    return node.do_node_getter(name, args)
+
+
+def do_node_updater(node: Node, name: str, args: Mapping[str, str]):
+    return node.do_node_updater(name, args)

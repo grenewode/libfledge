@@ -7,8 +7,9 @@ but could be extended to report other information.
 """
 
 import pywapi
-from libfledge.nodes import Node
+
 from libfledge import verbs
+from libfledge.nodes.base import Node
 
 
 class WeatherBase(Node):
@@ -17,6 +18,7 @@ class WeatherBase(Node):
         super().__init__()
         self._celsius_temperature = None
 
+    @verbs.update()
     def update(self):
         """
         This funciton is called to update the weather form the given API.
@@ -24,7 +26,7 @@ class WeatherBase(Node):
         """
         raise NotImplementedError("This must be implemented in the base class")
 
-    @verbs.read
+    @verbs.read()
     def temperature(self, using_fahrenheit=True):
         if self._celsius_temperature is None:
             self.update()
@@ -47,7 +49,7 @@ class NOAA(WeatherBase):
         """
         self.noaa_city_code = noaa_city_code
 
-    @verbs.update
+    @verbs.update()
     def update(self):
         noaa_result = pywapi.get_weather_from_noaa(self.noaa_city_code)
         self._celsius_temperature = float(noaa_result['temp_c'])
@@ -59,7 +61,7 @@ class WeatherCom(WeatherBase):
         super().__init__()
         self.zip_code = zip_code
 
-    @verbs.update
+    @verbs.update()
     def update(self):
         result = pywapi.get_weather_from_weather_com(
             str(self.zip_code))['current_conditions']
@@ -76,7 +78,7 @@ class Weather(WeatherBase):
         if noaa_city_code is not None:
             self.backend = NOAA(noaa_city_code)
 
-    @verbs.update
+    @verbs.update()
     def update(self):
         self.backend.update()
         self._celsius_temperature = self.backend._celsius_temperature
