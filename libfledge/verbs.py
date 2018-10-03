@@ -1,22 +1,33 @@
 from enum import Enum
 from types import FunctionType
-from typing import Optional
+from typing import List, Mapping, Optional, Union
 
 _LIBFLEDGE_FUNC_VERB_TAG = 'libfledge_verb'
 
 
 class Mode(Enum):
-    READ = 'read'
+    GET = 'get'
     UPDATE = 'UPDATE'
 
 
 class Verb:
 
-    def __init__(self, mode: Mode, func: FunctionType, name: Optional[str] = None, desc: Optional[str] = None) -> None:
+    def __init__(self, mode: Mode, func: FunctionType, name: Optional[str], desc: Optional[str], arguments: Mapping[str, type]) -> None:
         self.func = func
         self.mode = mode
         self._name = name
         self._desc = desc
+
+    def __call__(self, **kwargs: object):
+        # do typechecking
+        for (name, ty) in self.arguments:
+            if name not in kwargs:
+                raise ValueError(
+                    f'{self.name} expects an argument named {name}')
+            elif not isinstance(kwargs[name], ty):
+                raise TypeError(
+                    f'{self.name} expects an argument named {name}')
+        return self.func(**kwargs)
 
     @property
     def name(self):
@@ -39,19 +50,19 @@ class Verb:
                                                                      desc=self._desc)
 
 
-def read(*args, **kwargs):
+def get(name: Optional[str] = None, description: Optional[str] = None, **arguments: type):
     def decorator(func: FunctionType):
         setattr(func, _LIBFLEDGE_FUNC_VERB_TAG,
-                Verb(Mode.READ, func, *args, **kwargs))
+                Verb(Mode.GET, func, name, description, arguments))
         return func
 
     return decorator
 
 
-def update(*args, **kwargs):
+def update(name: Optional[str] = None, description: Optional[str] = None, **arguments: type):
     def decorator(func: FunctionType):
         setattr(func, _LIBFLEDGE_FUNC_VERB_TAG,
-                Verb(Mode.UPDATE, func, *args, **kwargs))
+                Verb(Mode.UPDATE, func, name, description, arguments))
         return func
 
     return decorator
