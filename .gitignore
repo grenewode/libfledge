@@ -5,3 +5,6 @@ venv
 **/__pycache__
 .mypy_cache
 third-party
+build
+dist
+*.egg-info

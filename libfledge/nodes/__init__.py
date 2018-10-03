@@ -1,5 +1,5 @@
 import json
-from typing import Mapping, Union
+from typing import Mapping, Union, Type
 
 from libfledge.nodes.base import Node
 from libfledge.nodes.weather import *

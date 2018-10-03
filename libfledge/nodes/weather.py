@@ -13,7 +13,6 @@ from libfledge.nodes.base import Node
 
 
 class WeatherBase(Node):
-
     def __init__(self):
         super().__init__()
         self._celsius_temperature = None
@@ -26,7 +25,7 @@ class WeatherBase(Node):
         """
         raise NotImplementedError("This must be implemented in the base class")
 
-    @verbs.read()
+    @verbs.get()
     def temperature(self, using_fahrenheit=True):
         if self._celsius_temperature is None:
             self.update()
@@ -40,7 +39,6 @@ class WeatherBase(Node):
 
 
 class NOAA(WeatherBase):
-
     def __init__(self, noaa_city_code='KLAN'):
         super().__init__()
         """
@@ -56,20 +54,18 @@ class NOAA(WeatherBase):
 
 
 class WeatherCom(WeatherBase):
-
     def __init__(self, zip_code=48912):
         super().__init__()
         self.zip_code = zip_code
 
     @verbs.update()
     def update(self):
-        result = pywapi.get_weather_from_weather_com(
-            str(self.zip_code))['current_conditions']
+        result = pywapi.get_weather_from_weather_com(str(
+            self.zip_code))['current_conditions']
         self._celsius_temperature = float(result['temperature'])
 
 
 class Weather(WeatherBase):
-
     def __init__(self, zip_code=None, noaa_city_code=None):
         super().__init__()
         self.backend = None
