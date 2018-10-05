@@ -1,18 +1,29 @@
-import libfledge
-import json
-import string
+#!/usr/bin/env python3
+
 import argparse
-from libfledge.nodes import Node
+import json
+from typing import Optional
+
+import libfledge
+import libfledge.nodes
+from libfledge.nodes import Node, get_node_verbs, kind_description, kind_name
 from libfledge.verbs import Mode
 
 
 def _cli_startup_info(node: Node):
     return {
-        'libfledge_version': libfledge.__version__,
-        'node': {
-            'kind': node.kind_name(),
-            'description': node.kind_description()
-        }
+        'libfledge': {
+            'version': libfledge.__version__,
+            'paths': libfledge.__path__
+        },
+    }
+
+
+def _node_info(node: Node):
+    return {
+        'kind_name': kind_name(node),
+        'kind_description': kind_description(node),
+        'verbs': get_node_verbs(node).to_dict()
     }
 
 
@@ -23,34 +34,52 @@ def to_dict(obj: object) -> bool:
 
 
 def _show(msg: dict, pretty: bool):
-    print(json.dumps(msg, ident=4 if pretty else None))
+    print(json.dumps(msg, indent=4 if pretty else None))
 
 
 def _show_error(error: Exception, pretty: bool):
     _show({
         'status': 'error',
-        'name': type(error).__name__,
+        'error_name': type(error).__name__,
         'message': str(error)
     }, pretty)
 
 
 def _show_reply(command: str, msg: object, pretty: bool):
-    _show({'status': 'ok', 'name': command, 'message': to_dict(msg)}, pretty)
+    _show({
+        'status': 'ok',
+        'command': command,
+        'message': to_dict(msg)
+    }, pretty)
+
+
+class Command:
+    def __init__(self, args, func):
+        self.args = args
+        self.func = func
+
+    def __call__(self, node: Node, command: dict):
+        return self.func(node, **command)
 
 
 _COMMANDS = {}
 
 
-def command(func):
-    global _COMMANDS
+def command(**kwargs):
+    def decorator(func):
+        global _COMMANDS
 
-    _COMMANDS[string.strip(func.__name__, chars='_\t ')] = func
+        _COMMANDS[func.__name__.strip('_\t ')] = Command(kwargs, func)
 
-    return func
+        return func
+
+    return decorator
 
 
-@command
-def _list_verbs(command: dict, node: Node):
+@command(
+    mode="optional." +
+    "Specifies the which type of verb to list.Valid values are get and update")
+def _list_verbs(node: Node, mode: Optional[str] = None):
     """
     Get the list of verbs available on this node.
 
@@ -59,21 +88,40 @@ def _list_verbs(command: dict, node: Node):
     and is used to filter for a particular type of verb.
     """
     verbs = node.get_node_verbs()
-    if 'mode' in command or command['mode'] is not None:
-        mode = command['mode']
-        if mode == Mode.GET.value:
-            return verbs.get
-        elif mode == Mode.UPDATE.value:
-            return verbs.update
-    return verbs
+    if mode is not None:
+        return verbs[mode]
+    else:
+        return verbs
 
 
-def run_cli(node: Node, pretty: bool = False):
-    _show_reply(_cli_startup_info(node), pretty)
+@command(
+    mode="the mode this verb belongs to",
+    verb="the name of the verb to fire",
+    arguments="the arguments to the verb")
+def _do(node: Node, mode: str, verb: str, arguments: dict):
+    verbs = get_node_verbs(node)
+    return verbs[mode][verb](node, **arguments)
+
+
+@command()
+def _help(node: Node):
+    """
+    Shows the help message
+    """
+    global _COMMANDS
+
+    return {name: func.__doc__ for name, func in _COMMANDS.items()}
+
+
+def run_cli(node: Optional[Node], pretty: bool = False):
+    _show(_cli_startup_info(node), pretty)
+    if node is not None:
+        _show(_node_info(node), pretty)
 
     input_buffer = ''
     while True:
         current_line = input()
+
         # We want to read until we see an empty line
         if current_line:
             input_buffer += current_line
@@ -86,9 +134,12 @@ def run_cli(node: Node, pretty: bool = False):
 
         try:
             command = json.loads(input_buffer)
+            command_name = command['command']
+        except json.decoder.JSONDecodeError as err:
+            _show_error(err, pretty)
 
-            command_name = command['command_name']
-            msg = _COMMANDS[command_name](command, node)
+        try:
+            msg = _COMMANDS[command_name](node, command.get('arguments', {}))
             _show_reply(command_name, msg, pretty)
         except Exception as err:
             _show_error(err, pretty)
@@ -98,10 +149,29 @@ def run_cli(node: Node, pretty: bool = False):
 
 
 def main():
-    parser = argparse.ArgumentParser('launcher for libfledge')
+    parser = argparse.ArgumentParser()
     parser.add_argument(
-        'node', metavar='NODE', type=str, help='the node the load')
-    parser.add_argument(
-        '--pretty', help='if the output of commands should be pretty printed')
+        '-p',
+        '--pretty',
+        action='store_true',
+        default=False,
+        help='if the output of commands should be pretty printed')
+    parser.add_argument('node', nargs='?', help='the node the load')
+
     args = parser.parse_args()
-    print(args)
+    node = None
+    if args.node is not None:
+        if args.node not in libfledge.nodes.__dict__:
+            print(f'unknown node name: {args.node}')
+            return
+
+        node_cls = libfledge.nodes.__dict__[args.node]
+        if issubclass(node_cls, type(Node)):
+            print(f'not a node class: {args.node}')
+            return
+
+        # Create the node from it's class.
+        # TODO: this should really take some arguments from a config file or something
+        node = node_cls()
+
+    run_cli(node, args.pretty)
