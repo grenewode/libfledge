@@ -1,36 +1,50 @@
 import json
-from typing import Mapping, Union, Type
+from typing import Mapping, Union, Type, Optional
+import inspect
 
-from libfledge.nodes.base import Node
-from libfledge.nodes.weather import *
-from libfledge.verbs import Verb
-
-
-def kind_name(node: Node):
-    return node.kind_name()
+import libfledge
+from libfledge import verbs
 
 
-def kind_description(node: Node):
-    return node.kind_description()
+class Node:
+
+    def __init__(self):
+        self.node_verbs = verbs.Verbs(self)
+
+    @classmethod
+    def cls_info(cls):
+        return {'kind_name': cls.cls_kind_name(),
+                'kind_description': cls.cls_kind_description()}
+
+    @classmethod
+    def cls_kind_name(cls):
+        """The kind of node this is"""
+        return cls.__name__
+
+    @classmethod
+    def cls_kind_description(cls):
+        """The description of this node"""
+        return inspect.getdoc(cls)
+
+    @verbs.get()
+    def info(self):
+        """Provides information about this node"""
+        return type(self).cls_info()
+
+    @verbs.get()
+    def kind_name(self):
+        """The kind of node this is"""
+        return type(self).cls_kind_name()
+
+    @verbs.get()
+    def kind_description(self):
+        """The description of this node"""
+        return type(self).cls_kind_description()
+
+    @verbs.get()
+    def help(self):
+        """Shows the help message"""
+        return {verb.name: verb.to_dict() for verb in self.node_verbs}
 
 
-def get_node_verbs(node: Union[Type[Node], Node]):
-    if isinstance(node, Node):
-        return get_node_verbs(type(node))
-    return node.get_node_verbs()
-
-
-# def get_node_getters(node: Node) -> Mapping[str, Verb]:
-#     return {verb.name: verb for verb in node.node_getters()}
-#
-#
-# def get_node_updaters(node: Node):
-#     return {verb.name: verb for verb in node.node_updaters()}
-#
-#
-# def do_node_getter(node: Node, name: str, args: Mapping[str, str]):
-#     return json.dumps(node.do_node_getter(name, args))
-#
-#
-# def do_node_updater(node: Node, name: str, args: Mapping[str, str]):
-#     return json.dumps(node.do_node_updater(name, args))
+from libfledge.nodes.weather import Weather, NOAA, WeatherCom

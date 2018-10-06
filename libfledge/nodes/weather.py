@@ -9,7 +9,7 @@ but could be extended to report other information.
 import pywapi
 
 from libfledge import verbs
-from libfledge.nodes.base import Node
+from libfledge.nodes import Node
 
 
 class WeatherBase(Node):
@@ -39,6 +39,8 @@ class WeatherBase(Node):
 
 
 class NOAA(WeatherBase):
+    """Pull weather data from NOAA using pywapi"""
+
     def __init__(self, noaa_city_code='KLAN'):
         super().__init__()
         """
@@ -54,6 +56,8 @@ class NOAA(WeatherBase):
 
 
 class WeatherCom(WeatherBase):
+    """Pull weather data from weather.com using pywapi"""
+
     def __init__(self, zip_code=48912):
         super().__init__()
         self.zip_code = zip_code
